@@ -1,0 +1,637 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Logs Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            width: 95%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            margin: 0;
+        }
+        .filters {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .filter-group input, .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.danger {
+            background-color: #e74c3c;
+        }
+        button.danger:hover {
+            background-color: #c0392b;
+        }
+        button.success {
+            background-color: #2ecc71;
+        }
+        button.success:hover {
+            background-color: #27ae60;
+        }
+        .logs-container {
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            height: 500px;
+            overflow: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .attack-xss {
+            color: #e74c3c;
+        }
+        .attack-sqli {
+            color: #9b59b6;
+        }
+        .attack-brute {
+            color: #e67e22;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 60%;
+            max-width: 800px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .analysis-section {
+            margin-bottom: 20px;
+        }
+        .analysis-chart {
+            height: 300px;
+            margin-top: 20px;
+        }
+        #loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Security Logs Dashboard</h1>
+    </header>
+    
+    <div class="container">
+        <div id="status-container"></div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <label for="attack-type">Attack Type:</label>
+                <select id="attack-type">
+                    <option value="">All Types</option>
+                    <option value="XSS">Cross-Site Scripting (XSS)</option>
+                    <option value="SQLi">SQL Injection</option>
+                    <option value="Brute Force">Brute Force</option>
+                    <option value="Directory Traversal">Directory Traversal</option>
+                    <option value="Command Injection">Command Injection</option>
+                    <option value="File Inclusion">File Inclusion</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="start-date">Start Date:</label>
+                <input type="datetime-local" id="start-date">
+            </div>
+            
+            <div class="filter-group">
+                <label for="end-date">End Date:</label>
+                <input type="datetime-local" id="end-date">
+            </div>
+            
+            <div class="filter-group">
+                <label for="ip-address">IP Address:</label>
+                <input type="text" id="ip-address" placeholder="e.g. 192.168.1.1">
+            </div>
+            
+            <div class="filter-group actions">
+                <button id="filter-btn">Apply Filters</button>
+                <button id="reset-btn">Reset</button>
+            </div>
+        </div>
+        
+        <div class="logs-container">
+            <table id="logs-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>IP Address</th>
+                        <th>Attack Type</th>
+                        <th>Method</th>
+                        <th>URI</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-body">
+                    <tr>
+                        <td colspan="6" id="loading">Loading security logs...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="actions">
+            <button id="analyze-btn" class="success">Analyze Logs</button>
+            <button id="view-blocked-ips-btn" class="danger">View Blocked IPs</button>
+        </div>
+    </div>
+    
+    <!-- Flag IP Modal -->
+    <div id="flag-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Block IP Address</h2>
+            <p>Are you sure you want to block the IP address <span id="flag-ip"></span>?</p>
+            <p>This will add a firewall rule to block all traffic from this IP.</p>
+            <div class="actions">
+                <button id="confirm-flag" class="danger">Block IP</button>
+                <button id="cancel-flag">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Analysis Modal -->
+    <div id="analysis-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Security Logs Analysis</h2>
+            
+            <div class="analysis-section">
+                <h3>Top Attacking IP Addresses</h3>
+                <div id="top-ips"></div>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>Attack Type Distribution</h3>
+                <div id="attack-distribution"></div>
+            </div>
+            
+            <div class="analysis-section">
+                <h3>Hourly Activity (Last 24 Hours)</h3>
+                <div id="hourly-chart" class="analysis-chart"></div>
+            </div>
+            
+            <div class="analysis-section" id="advanced-analysis">
+                <h3>Potential Brute Force Attacks</h3>
+                <div id="brute-force"></div>
+                
+                <h3>Targeted Path Attacks</h3>
+                <div id="targeted-attacks"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="blocked-ips-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Blocked IP Addresses</h2>
+            <div id="blocked-ips-container">
+                <p id="loading-blocked-ips">Loading blocked IP addresses...</p>
+                <table id="blocked-ips-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Blocked At</th>
+                            <th>Reason</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocked-ips-body">
+                    </tbody>
+                </table>
+                <p id="no-blocked-ips" style="display: none;">No IP addresses are currently blocked.</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load logs on page load
+            loadLogs();
+            
+            // Event listeners
+            document.getElementById('filter-btn').addEventListener('click', loadLogs);
+            document.getElementById('reset-btn').addEventListener('click', resetFilters);
+            document.getElementById('analyze-btn').addEventListener('click', analyzeSecurityLogs);
+            
+            // Close modal when clicking the X or outside the modal
+            document.querySelectorAll('.close').forEach(function(closeBtn) {
+                closeBtn.addEventListener('click', closeModals);
+            });
+            
+            window.addEventListener('click', function(event) {
+                if (event.target === document.getElementById('flag-modal') || 
+                    event.target === document.getElementById('analysis-modal')) {
+                    closeModals();
+                }
+            });
+            
+            document.getElementById('confirm-flag').addEventListener('click', flagIP);
+            document.getElementById('cancel-flag').addEventListener('click', closeModals);
+        });
+        
+        function loadLogs() {
+            const logsBody = document.getElementById('logs-body');
+            logsBody.innerHTML = '<tr><td colspan="6" id="loading">Loading security logs...</td></tr>';
+            
+            // Get filter values
+            const attackType = document.getElementById('attack-type').value;
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const ipAddress = document.getElementById('ip-address').value;
+            
+            // Build query string
+            let queryParams = new URLSearchParams();
+            if (attackType) queryParams.append('attack_type', attackType);
+            if (startDate) queryParams.append('start_date', startDate);
+            if (endDate) queryParams.append('end_date', endDate);
+            if (ipAddress) queryParams.append('ip_address', ipAddress);
+            
+            // Fetch logs from API
+            fetch(`/logs?${queryParams.toString()}`)
+                .then(response => response.json())
+                .then(logs => {
+                    if (logs.error) {
+                        showStatus(logs.error, 'error');
+                        return;
+                    }
+                    
+                    if (logs.length === 0) {
+                        logsBody.innerHTML = '<tr><td colspan="6">No logs found matching the filters.</td></tr>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    logs.forEach(log => {
+                        html += `
+                            <tr>
+                                <td>${log.timestamp}</td>
+                                <td>${log.ip_address}</td>
+                                <td class="attack-${log.attack_type.toLowerCase().replace(' ', '-')}">${log.attack_type}</td>
+                                <td>${log.method}</td>
+                                <td title="${log.query_string ? log.query_string : ''}">${log.request_uri}</td>
+                                <td>
+                                    <button class="danger flag-ip-btn" data-ip="${log.ip_address}">Flag IP</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    logsBody.innerHTML = html;
+                    
+                    // Add event listeners to the new flag buttons
+                    document.querySelectorAll('.flag-ip-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            openFlagModal(this.getAttribute('data-ip'));
+                        });
+                    });
+                })
+                .catch(error => {
+                    showStatus('Failed to load logs: ' + error, 'error');
+                    logsBody.innerHTML = '<tr><td colspan="6">Error loading logs. Please try again.</td></tr>';
+                });
+        }
+        
+        function resetFilters() {
+            document.getElementById('attack-type').value = '';
+            document.getElementById('start-date').value = '';
+            document.getElementById('end-date').value = '';
+            document.getElementById('ip-address').value = '';
+            loadLogs();
+        }
+        
+        function openFlagModal(ip) {
+            document.getElementById('flag-ip').textContent = ip;
+            document.getElementById('flag-modal').style.display = 'block';
+        }
+        
+        function closeModals() {
+            document.getElementById('flag-modal').style.display = 'none';
+            document.getElementById('analysis-modal').style.display = 'none';
+        }
+        
+        function flagIP() {
+            const ip = document.getElementById('flag-ip').textContent;
+            
+            fetch('/flag-ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ip_address: ip
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                closeModals();
+                
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                } else {
+                    showStatus(`IP ${ip} has been successfully blocked.`, 'success');
+                    // Reload logs to reflect changes
+                    loadLogs();
+                }
+            })
+            .catch(error => {
+                closeModals();
+                showStatus('Error blocking IP: ' + error, 'error');
+            });
+        }
+        
+        function analyzeSecurityLogs() {
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'advanced'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                    return;
+                }
+                
+                // Populate top IPs
+                let topIpsHtml = '<table><thead><tr><th>IP Address</th><th>Attack Count</th></tr></thead><tbody>';
+                data.top_ips.forEach(item => {
+                    topIpsHtml += `<tr><td>${item.ip_address}</td><td>${item.count}</td></tr>`;
+                });
+                topIpsHtml += '</tbody></table>';
+                document.getElementById('top-ips').innerHTML = topIpsHtml;
+                
+                // Populate attack distribution
+                let attackDistHtml = '<table><thead><tr><th>Attack Type</th><th>Count</th></tr></thead><tbody>';
+                data.attack_distribution.forEach(item => {
+                    attackDistHtml += `<tr><td>${item.attack_type}</td><td>${item.count}</td></tr>`;
+                });
+                attackDistHtml += '</tbody></table>';
+                document.getElementById('attack-distribution').innerHTML = attackDistHtml;
+                
+                // Populate brute force analysis if available
+                if (data.potential_brute_force) {
+                    let bruteForceHtml = '<table><thead><tr><th>IP Address</th><th>Request Count</th><th>First Seen</th><th>Last Seen</th></tr></thead><tbody>';
+                    data.potential_brute_force.forEach(item => {
+                        bruteForceHtml += `<tr>
+                            <td>${item.ip_address}</td>
+                            <td>${item.count}</td>
+                            <td>${item.first_seen}</td>
+                            <td>${item.last_seen}</td>
+                        </tr>`;
+                    });
+                    bruteForceHtml += '</tbody></table>';
+                    document.getElementById('brute-force').innerHTML = bruteForceHtml;
+                }
+                
+                // Populate targeted attacks if available
+                if (data.targeted_attacks) {
+                    let targetedHtml = '<table><thead><tr><th>IP Address</th><th>Target URI</th><th>Attempts</th></tr></thead><tbody>';
+                    data.targeted_attacks.forEach(item => {
+                        targetedHtml += `<tr>
+                            <td>${item.ip_address}</td>
+                            <td>${item.request_uri}</td>
+                            <td>${item.count}</td>
+                        </tr>`;
+                    });
+                    targetedHtml += '</tbody></table>';
+                    document.getElementById('targeted-attacks').innerHTML = targetedHtml;
+                }
+                
+                // Show the analysis modal
+                document.getElementById('analysis-modal').style.display = 'block';
+            })
+            .catch(error => {
+                showStatus('Error analyzing logs: ' + error, 'error');
+            });
+        }
+        
+        function showStatus(message, type) {
+            const statusContainer = document.getElementById('status-container');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.textContent = message;
+            
+            statusContainer.appendChild(statusDiv);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                statusDiv.remove();
+            }, 5000);
+        }
+
+        document.getElementById('view-blocked-ips-btn').addEventListener('click', loadBlockedIPs);
+
+        // Make sure closeModals function includes the blocked IPs modal
+        function closeModals() {
+            document.getElementById('flag-modal').style.display = 'none';
+            document.getElementById('analysis-modal').style.display = 'none';
+            document.getElementById('blocked-ips-modal').style.display = 'none';
+        }
+
+        // Add to your window click event listener
+        window.addEventListener('click', function(event) {
+            if (event.target === document.getElementById('flag-modal') || 
+                event.target === document.getElementById('analysis-modal') ||
+                event.target === document.getElementById('blocked-ips-modal')) {
+                closeModals();
+            }
+        });
+
+        function loadBlockedIPs() {
+            document.getElementById('blocked-ips-modal').style.display = 'block';
+            document.getElementById('loading-blocked-ips').style.display = 'block';
+            document.getElementById('blocked-ips-table').style.display = 'none';
+            document.getElementById('no-blocked-ips').style.display = 'none';
+            
+            fetch('/blocked-ips')
+                .then(response => response.json())
+                .then(ips => {
+                    document.getElementById('loading-blocked-ips').style.display = 'none';
+                    
+                    if (ips.error) {
+                        showStatus(ips.error, 'error');
+                        return;
+                    }
+                    
+                    if (ips.length === 0) {
+                        document.getElementById('no-blocked-ips').style.display = 'block';
+                        return;
+                    }
+                    
+                    const tableBody = document.getElementById('blocked-ips-body');
+                    tableBody.innerHTML = '';
+                    
+                    ips.forEach(ip => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${ip.ip_address}</td>
+                            <td>${ip.blocked_at}</td>
+                            <td>${ip.reason}</td>
+                            <td>
+                                <button class="success unblock-ip-btn" data-ip="${ip.ip_address}">Unblock IP</button>
+                            </td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                    
+                    document.getElementById('blocked-ips-table').style.display = 'table';
+                    
+                    // Add event listeners to unblock buttons
+                    document.querySelectorAll('.unblock-ip-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            unblockIP(this.getAttribute('data-ip'));
+                        });
+                    });
+                })
+                .catch(error => {
+                    document.getElementById('loading-blocked-ips').style.display = 'none';
+                    showStatus('Error loading blocked IPs: ' + error, 'error');
+                });
+        }
+
+        function unblockIP(ip) {
+            if (!confirm(`Are you sure you want to unblock the IP address ${ip}?`)) {
+                return;
+            }
+            
+            fetch('/unflag-ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ip_address: ip
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatus(data.error, 'error');
+                } else {
+                    showStatus(`IP ${ip} has been successfully unblocked.`, 'success');
+                    // Reload the blocked IPs list
+                    loadBlockedIPs();
+                }
+            })
+            .catch(error => {
+                showStatus('Error unblocking IP: ' + error, 'error');
+            });
+        }
+
+    </script>
+</body>
+</html>
